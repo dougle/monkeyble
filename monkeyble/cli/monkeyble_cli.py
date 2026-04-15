@@ -72,6 +72,11 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
         global_extra_vars.extend(monkeyble_config["monkeyble_global_extra_vars"])
     for test_config in monkeyble_config["monkeyble_test_suite"]:
         extra_vars = copy(global_extra_vars)
+
+        # we need either a playbook or role in the config
+        if not any(k in test_config for k in ("playbook","role")):
+            raise MonkeybleCLIException(message="Missing 'playbook' or 'role' key in a monkeyble_test_suite config")
+
         playbook_file = test_config.get("playbook", None)
 
         # if we don't have a playbook check for a role
@@ -95,11 +100,10 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
         else:
             # get the playbook name
             with open(playbook_file, "r") as f:
-                playbook_name = yaml.safe_load(f).get("name", playbook_file)
-
-        # we need either a playbook or role in the config
-        if playbook_file is None:
-            raise MonkeybleCLIException(message="Missing 'playbook' or 'role' key in a monkeyble_test_suite config")
+                try:
+                    playbook_name = yaml.safe_load(f)[0].get("name", playbook_file)
+                except IndexError as e:
+                    pass
 
         Utils.print_info(f"Monkeyble - ansible cmd: {ansible_cmd}")
         new_result = MonkeybleResult(playbook_name)

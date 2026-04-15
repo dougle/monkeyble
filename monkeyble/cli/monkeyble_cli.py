@@ -80,7 +80,14 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
         extra_vars.extend(test_config.get("extra_vars", []))
         scenarios = test_config.get("scenarios", None)
         if scenarios is None:
-            raise MonkeybleCLIException(message=f"No scenarios for playbook {playbook}")
+            # laod all extra_vars config files and build one big yaml document
+            combined_config = {}
+            for file_path in extra_vars_file_paths:
+                combined_config.update(yaml.safe_load(open(file_path)))
+
+            # get all of the scenario names
+            scenarios = list(combined_config.get('monkeyble_scenarios', {}).keys())
+
         # print the current path
         Utils.print_info(f"Monkeyble - current path: {pathlib.Path().resolve()}")
         list_scenario_result = list()

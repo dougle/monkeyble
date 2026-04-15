@@ -107,7 +107,7 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
         extra_vars.extend(test_config.get("extra_vars", []))
         scenarios = test_config.get("scenarios", None)
         if scenarios is None:
-            raise MonkeybleCLIException(message=f"No scenarios for playbook/role {playbook}")
+            raise MonkeybleCLIException(message=f"No scenarios for playbook/role: {playbook_name}")
         # print the current path
         Utils.print_info(f"Monkeyble - current path: {pathlib.Path().resolve()}")
         list_scenario_result = list()
@@ -120,7 +120,7 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
         new_result.scenario_results = list_scenario_result
         list_result.append(new_result)
 
-        # if a role has been tested, delete the wrapper playbook
+        # if this is a role, delete the wrapper playbook
         if "role" in test_config.keys():
             pathlib.Path(playbook_file).unlink()
     return list_result

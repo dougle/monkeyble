@@ -72,33 +72,37 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
         global_extra_vars.extend(monkeyble_config["monkeyble_global_extra_vars"])
     for test_config in monkeyble_config["monkeyble_test_suite"]:
         extra_vars = copy(global_extra_vars)
-        playbook = test_config.get("playbook", None)
-        delete_playbook_after = False
+        playbook_file = test_config.get("playbook", None)
 
         # if we don't have a playbook check for a role
-        if playbook is None:
-            playbook = tempfile.mkstemp(prefix="monkeyble_")[1]
+        if playbook_file is None:
+            playbook_file = tempfile.mkstemp(prefix="monkeyble_")[1]
             role_config = test_config.get("role", None)
-            delete_playbook_after = True
+            playbook_name =  role_config['name'].lower()
 
             # create a wrapper playbook that loads this role
             # much cleaner than `ansible -m include_role ...`
-            with open(playbook, "w") as f:
+            with open(playbook_file, "w") as f:
                 yaml.dump([{
-                    "name": f"{role_config['name'].lower().title()} Role",
+                    "name": f"{playbook_name} Role",
                     "hosts": role_config['hosts'],
                     "connection": "local",
                     "gather_facts": False,
                     "become": False,
-                    "roles": [role_config['name'].lower()]
+                    "roles": [playbook_name]
                 }], f)
 
+        else:
+            # get the playbook name
+            with open(playbook_file, "r") as f:
+                playbook_name = yaml.safe_load(f).get("name", playbook_file)
+
         # we need either a playbook or role in the config
-        if playbook is None:
+        if playbook_file is None:
             raise MonkeybleCLIException(message="Missing 'playbook' or 'role' key in a monkeyble_test_suite config")
 
         Utils.print_info(f"Monkeyble - ansible cmd: {ansible_cmd}")
-        new_result = MonkeybleResult(playbook)
+        new_result = MonkeybleResult(playbook_name)
         inventory = test_config.get("inventory", None)
         extra_vars.extend(test_config.get("extra_vars", []))
         scenarios = test_config.get("scenarios", None)
@@ -111,17 +115,19 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
             if len(scenario_name_limit) > 0 and scenario not in scenario_name_limit:
                 continue
             scenario_result = ScenarioResult(scenario)
-            scenario_result.result = run_ansible(ansible_cmd, playbook, inventory, extra_vars, scenario)
+            scenario_result.result = run_ansible(ansible_cmd, playbook_file, inventory, extra_vars, scenario)
             list_scenario_result.append(scenario_result)
         new_result.scenario_results = list_scenario_result
         list_result.append(new_result)
-        if delete_playbook_after:
-            pathlib.Path(playbook).unlink()
+
+        # if a role has been tested, delete the wrapper playbook
+        if "role" in test_config.keys():
+            pathlib.Path(playbook_file).unlink()
     return list_result
 
 
 def print_result_table(monkeyble_results):
-    headers = ["Playbook", "Scenario", "Test passed"]
+    headers = ["Playbook/Role", "Scenario", "Test passed"]
     table = list()
 
     for monkeyble_result in monkeyble_results:

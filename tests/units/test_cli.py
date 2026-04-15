@@ -16,6 +16,10 @@ from monkeyble.cli.monkeyble_cli import load_monkeyble_config, do_exit, run_monk
 
 class TestMonkeybleModule(unittest.TestCase):
 
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName=methodName)
+        self.current_path = str(pathlib.Path(__file__).parent.resolve())
+
     def test_load_monkeyble_config_default_config(self):
         with patch("builtins.open", mock_open(read_data="data")) as mock_open_file:
             load_monkeyble_config(None)
@@ -35,8 +39,7 @@ class TestMonkeybleModule(unittest.TestCase):
     # fix path when executed as standalone test
     @patch("monkeyble.cli.monkeyble_cli.MONKEYBLE_DEFAULT_CONFIG_PATH", "tests/units/test_config/monkeyble.yml")
     def test_load_monkeyble_config(self):
-        current_path = pathlib.Path(__file__).parent.resolve()
-        test_monkeyble_path = str(current_path) + "/test_config/monkeyble.yml"
+        test_monkeyble_path = self.current_path + "/test_config/monkeyble.yml"
         with mock.patch("monkeyble.cli.monkeyble_cli.MONKEYBLE_DEFAULT_CONFIG_PATH", test_monkeyble_path):
             data = load_monkeyble_config(None)
             expected = {'monkeyble_global_extra_vars': ['mocks.yml'],
@@ -87,7 +90,7 @@ class TestMonkeybleModule(unittest.TestCase):
     def test_run_monkeyble_test_no_scenario_defined(self, mock_exit):
         monkeyble_config = {
             "monkeyble_test_suite": [
-                {"playbook": "playbook.yml"}
+                {"playbook": f"{self.current_path}/test_config/playbook1.yml"}
             ]
         }
         with self.assertRaises(MonkeybleCLIException):
@@ -99,13 +102,13 @@ class TestMonkeybleModule(unittest.TestCase):
             "monkeyble_global_extra_vars": ['mocks.yml'],
             "monkeyble_test_suite": [
                 {
-                    "playbook": "playbook1.yml",
+                    "playbook": f"{self.current_path}/test_config/playbook1.yml",
                     "inventory": "my_inventory1",
                     "extra_vars": ["extra_vars1.yml", "extra_vars2.yml"],
                     "scenarios": ["scenario1", "scenario2"]
                 },
                 {
-                    "playbook": "playbook2.yml",
+                    "playbook": f"{self.current_path}/test_config/playbook2.yml",
                     "inventory": "my_inventory2",
                     "extra_vars": ["extra_vars3.yml"],
                     "scenarios": ["scenario3"]
@@ -117,17 +120,17 @@ class TestMonkeybleModule(unittest.TestCase):
             run_monkeyble_test(monkeyble_config)
             self.assertEqual(mock_run_ansible.call_count, 3)
             call_1 = call(MONKEYBLE_DEFAULT_ANSIBLE_CMD,
-                          "playbook1.yml",
+                          f"{self.current_path}/test_config/playbook1.yml",
                           "my_inventory1",
                           ["mocks.yml", "extra_vars1.yml", "extra_vars2.yml"],
                           "scenario1")
             call_2 = call(MONKEYBLE_DEFAULT_ANSIBLE_CMD,
-                          "playbook1.yml",
+                          f"{self.current_path}/test_config/playbook1.yml",
                           "my_inventory1",
                           ["mocks.yml", "extra_vars1.yml", "extra_vars2.yml"],
                           "scenario2")
             call_3 = call(MONKEYBLE_DEFAULT_ANSIBLE_CMD,
-                          "playbook2.yml",
+                          f"{self.current_path}/test_config/playbook2.yml",
                           "my_inventory2",
                           ["mocks.yml", "extra_vars3.yml"],
                           "scenario3")
@@ -138,7 +141,7 @@ class TestMonkeybleModule(unittest.TestCase):
             "monkeyble_global_extra_vars": ['mocks.yml'],
             "monkeyble_test_suite": [
                 {
-                    "playbook": "playbook1.yml",
+                    "playbook": f"{self.current_path}/test_config/playbook1.yml",
                     "inventory": "my_inventory1",
                     "extra_vars": ["extra_vars1.yml", "extra_vars2.yml"],
                     "scenarios": ["scenario1", "scenario2"]

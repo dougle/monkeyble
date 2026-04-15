@@ -1,0 +1,61 @@
+# ANSIBLE_CONFIG="ansible.cfg" ansible-playbook test_strategy_playbook.yml
+
+- name: "Ni Hao Monkeyble"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    who: "Monkeyble"
+    play_level_var: "default play var"
+
+  tasks:
+    - name: "First task"
+      set_fact:
+        hello_to_who: "Hello {{ who }}"
+
+    - name: "Second task"
+      debug:
+        msg: "{{ hello_to_who }}"
+
+    - when: "who != 'Monkeyble'"
+      name: "Should be skipped task"
+      debug:
+        msg: "You said hello to somebody else"
+
+    - name: "Push Monkeyble to a fake API"
+      uri:
+        url: "example.domain/monkeyble"
+        method: POST
+        body:
+          who: "{{ who }}"
+        body_format: json
+
+    - name: "Test loop"
+      debug:
+        msg: "{{ item }}"
+      loop:
+        - "general kenobi"
+        - "master kenobi"
+
+    - name: "Block rescue"
+      block:
+        - name: "This should fail"
+          fail:
+            msg: "Expected fail"
+      rescue:
+        - name: "Rescue task"
+          debug:
+              msg: "rescue executed"
+
+    - name: "Print play var non updated"
+      debug:
+        msg: "{{ play_level_var }}"
+
+    - name: "Print play var updated at scenario level"
+      debug:
+        msg: "{{ play_level_var }}"
+
+    - name: "Print play var updated at task level"
+      debug:
+        msg: "{{ play_level_var }}"

@@ -4,6 +4,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 import time
 from copy import copy
 from datetime import timedelta
@@ -71,16 +72,38 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
         global_extra_vars.extend(monkeyble_config["monkeyble_global_extra_vars"])
     for test_config in monkeyble_config["monkeyble_test_suite"]:
         extra_vars = copy(global_extra_vars)
-        Utils.print_info(f"Monkeyble - ansible cmd: {ansible_cmd}")
         playbook = test_config.get("playbook", None)
-        new_result = MonkeybleResult(playbook)
+        delete_playbook_after = False
+
+        # if we don't have a playbook check for a role
         if playbook is None:
-            raise MonkeybleCLIException(message="Missing 'playbook' key in a test")
+            playbook = tempfile.mkstemp(prefix="monkeyble_")[1]
+            role_config = test_config.get("role", None)
+            delete_playbook_after = True
+
+            # create a wrapper playbook that loads this role
+            # much cleaner than `ansible -m include_role ...`
+            with open(playbook, "w") as f:
+                yaml.dump([{
+                    "name": f"{role_config['name'].lower().title()} Role",
+                    "hosts": role_config['hosts'],
+                    "connection": "local",
+                    "gather_facts": False,
+                    "become": False,
+                    "roles": [role_config['name'].lower()]
+                }], f)
+
+        # we need either a playbook or role in the config
+        if playbook is None:
+            raise MonkeybleCLIException(message="Missing 'playbook' or 'role' key in a monkeyble_test_suite config")
+
+        Utils.print_info(f"Monkeyble - ansible cmd: {ansible_cmd}")
+        new_result = MonkeybleResult(playbook)
         inventory = test_config.get("inventory", None)
         extra_vars.extend(test_config.get("extra_vars", []))
         scenarios = test_config.get("scenarios", None)
         if scenarios is None:
-            raise MonkeybleCLIException(message=f"No scenarios for playbook {playbook}")
+            raise MonkeybleCLIException(message=f"No scenarios for playbook/role {playbook}")
         # print the current path
         Utils.print_info(f"Monkeyble - current path: {pathlib.Path().resolve()}")
         list_scenario_result = list()
@@ -92,6 +115,8 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
             list_scenario_result.append(scenario_result)
         new_result.scenario_results = list_scenario_result
         list_result.append(new_result)
+        if delete_playbook_after:
+            pathlib.Path(playbook).unlink()
     return list_result
 
 

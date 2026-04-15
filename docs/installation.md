@@ -17,6 +17,14 @@ callbacks_enabled = monkeyble_callback
 jinja2_native = True
 ```
 
+If you are testing roles add the path to the role directory:
+
+```ini
+[defaults]
+...
+roles = /path/to/my/roles_dev
+```
+
 !!!note
 
     `jinja2_native` is mandatory to interpret correctly null values

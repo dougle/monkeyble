@@ -48,9 +48,15 @@ A test definition contains information about the playbook to test with all scena
 | Name       | Required | Description                       |
 |------------|----------|-----------------------------------|
 | playbook   | true     | path to the playbook to test      |
+| role.name  | true     | name of role to test              |
+| role.hosts | true     | hosts to test role against        |
 | inventory  | false    | optional path to the inventory    |
 | extra_vars | false    | List of path to extra var file    |
 | scenarios  | true     | List of scenario name to validate |
+
+!!! note
+
+    Either `playbook` *or* `role` configuration should be used, `playbook` takes priority.
 
 Configuration example:
 
@@ -72,6 +78,16 @@ monkeyble_test_suite:
     scenarios:
       - "validate_this"
       - "validate_that"
+  - role:
+      name: "ftp_server"
+      hosts: "resource-01"
+    inventory: "inventory"
+    extra_vars:
+      - "shared_mocks.yml"
+      - "ftp_scenarios.yml"
+    scenarios:
+      - "validate_here"
+      - "validate_there"
 ```
 
 !!! note

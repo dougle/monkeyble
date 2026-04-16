@@ -136,6 +136,29 @@ class TestMonkeybleModule(unittest.TestCase):
                           "scenario3")
             mock_run_ansible.assert_has_calls([call_1, call_2, call_3])
 
+    def test_run_monkeyble_test_role_run_ansible_called(self):
+        monkeyble_config = {
+            "monkeyble_global_extra_vars": ['mocks.yml'],
+            "monkeyble_test_suite": [
+                {
+                    "role": {"name": "my_role"},
+                    "inventory": "my_inventory1",
+                    "extra_vars": ["extra_vars1.yml", "extra_vars2.yml"],
+                    "scenarios": ["scenario1", "scenario2"]
+                }
+            ]
+        }
+
+        with mock.patch("monkeyble.cli.monkeyble_cli.run_ansible") as mock_run_ansible:
+            run_monkeyble_test(monkeyble_config)
+            self.assertEqual(mock_run_ansible.call_count, 2)
+            for index, call in enumerate(mock_run_ansible.call_args_list):
+                self.assertEqual(call.args[0], MONKEYBLE_DEFAULT_ANSIBLE_CMD)
+                self.assertTrue(call.args[1].startswith("/tmp/monkeyble_"))
+                self.assertEqual(call.args[2], "my_inventory1")
+                self.assertEqual(call.args[3], ["mocks.yml", "extra_vars1.yml", "extra_vars2.yml"])
+                self.assertEqual(call.args[4], f"scenario{index+1}")
+
     def test_run_monkeyble_test_with_limit_run_ansible_called(self):
         monkeyble_config = {
             "monkeyble_global_extra_vars": ['mocks.yml'],

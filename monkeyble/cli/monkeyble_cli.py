@@ -90,7 +90,7 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
             with open(playbook_file, "w") as f:
                 yaml.dump([{
                     "name": f"{playbook_name} Role",
-                    "hosts": role_config['hosts'],
+                    "hosts": role_config.get('hosts', "localhost"),
                     "connection": "local",
                     "gather_facts": False,
                     "become": False,

@@ -81,7 +81,7 @@ def run_monkeyble_test(monkeyble_config, scenario_name_limit=None):
 
         # if we don't have a playbook check for a role
         if playbook_file is None:
-            playbook_file = tempfile.mkstemp(prefix="monkeyble_")[1]
+            playbook_file = tempfile.mkstemp(prefix="monkeyble_wrapper_")[1]
             role_config = test_config.get("role", None)
             playbook_name =  role_config['name'].lower()
 

@@ -1,14 +1,18 @@
 # Copyright 2022 Hewlett Packard Enterprise Development LP
+import importlib
 import json
 import os
 import sys
+import unittest.mock
 from builtins import super
 from copy import copy
 
 from ansible import constants as C
 from ansible.errors import AnsibleUndefinedVariable
+from ansible.module_utils.basic import AnsibleModule
 from ansible.parsing.dataloader import DataLoader
 from ansible.plugins.callback import CallbackBase
+from ansible.plugins.loader import PluginLoader
 from ansible.template import Templar
 from ansible.utils.display import Display
 
@@ -26,6 +30,12 @@ from plugins.module_utils._version import __version__
 
 global_display = Display()
 
+module_loader = PluginLoader(
+    '',
+    'ansible.modules',
+    C.DEFAULT_MODULE_PATH,
+    'library',
+)
 
 class CallbackModule(CallbackBase):
     """
@@ -257,11 +267,29 @@ class CallbackModule(CallbackBase):
                 return True
         return None
 
+    def get_module_arg_spec(self, module_name):
+        module_path = module_loader.find_plugin(module_name)
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        module = importlib.util.module_from_spec(spec)
+
+        with unittest.mock.patch("ansible.module_utils.basic.AnsibleModule", return_value=None) as mock_ansible_module:
+            try:
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+                module.main()
+            except Exception as e:
+                pass
+
+            return mock_ansible_module.call_args_list[0].args['argument_spec']
+
     def mock_task_module(self, ansible_task):
         new_action_name = next(iter(self._last_task_config["mock"]["config"]))
         original_module_name = ansible_task.action
         message = f"🙉 Monkeyble mock module - Before: '{original_module_name}' Now: '{new_action_name}'"
         self.display_message_ok(msg=str(message))
+
+        arg_spec = self.get_run_module_source(original_module_name)
+
         ansible_task.action = new_action_name
         ansible_task.resolved_action = new_action_name
         monkeyble_action_names = [

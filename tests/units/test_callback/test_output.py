@@ -45,6 +45,40 @@ class TestMonkeybleCallbackOutput(BaseTestMonkeybleCallback):
         self.test_callback.test_output(task_result)
         self.assertDictEqual(self.test_callback._last_check_output_result, expected)
 
+    def test_check_output_test_ok_loop_equals(self):
+        task_result = {"results": [{
+                "key1": "key1 is item1",
+                "item": "item1"
+            },
+            {
+                "key1": "key1 is item2",
+                "item": "item2"
+            }]
+        }
+        self.test_callback._last_task_name = "test_ok_loop_equals"
+        self.test_callback._last_task_config = {
+            "task": "test_ok_loop_equals",
+            "test_output": [
+                {
+                    "assert_equal": {
+                        "result_key": "key1",
+                        "expected": "key1 is {{ item }}"
+                    }
+                },
+            ]
+        }
+        expected = {'task': 'test_ok_loop_equals', 'monkeyble_passed_test': [{'test_name': 'assert_equal',
+                                                                             'tested_value': "key1 is item1",
+                                                                             'expected': "key1 is item1"},
+                                                                             {'test_name': 'assert_equal',
+                                                                              'tested_value': "key1 is item2",
+                                                                              'expected': "key1 is item2"}
+                                                                             ],
+                    'monkeyble_failed_test': []}
+
+        self.test_callback.test_output(task_result)
+        self.assertDictEqual(self.test_callback._last_check_output_result, expected)
+
     def test_check_output_test_ok_empty_value(self):
         task_result = {
             "key2": ""

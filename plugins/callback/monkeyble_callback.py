@@ -1,6 +1,7 @@
 # Copyright 2022 Hewlett Packard Enterprise Development LP
 import json
 import os
+import re
 import sys
 from builtins import super
 from copy import copy
@@ -90,9 +91,13 @@ class CallbackModule(CallbackBase):
         # variable placed into the monkeyble config need to be instantiated with extra vars
         templar = Templar(loader=DataLoader(), variables=self.playbook_extra_vars)
         try:
-            self.monkeyble_config = templar.template(tag_values(loaded_monkeyble_config))
+            # template *some* sections of the config
+            self.monkeyble_config = loaded_monkeyble_config
+            for key in ['name', 'extra_vars', 'monkeyble_shared_tasks']:
+                if key in self.monkeyble_config.keys():
+                    self.monkeyble_config[key] = templar.template(tag_values(loaded_monkeyble_config[key]))
         except Exception as e:
-            raise MonkeybleException(message=str(e),
+            raise MonkeybleException(message=f"Templating Config Error: {str(e)}",
                                      scenario_description=monkeyble_scenario)
 
         self.display_message_ok(f"monkeyble_scenario: {monkeyble_scenario}")
@@ -190,24 +195,35 @@ class CallbackModule(CallbackBase):
                     FAILED_TEST: []
                 }
                 for result_value_to_test in self._last_task_config["test_output"]:
-                    for test_name, result_value_and_expected in result_value_to_test.items():
-                        result_key = result_value_and_expected['result_key']
+                    for test_name, result_key_and_expected in result_value_to_test.items():
+                        result_key = result_key_and_expected.get('result_key')
+
+                        # result prefix is a problem for handling loops
+                        result_key = re.sub(r'^results?\.', '', result_key)
+
                         # template the result to get the real value
-                        template_string = "{{  " + result_key + "  }}"
-                        context = {
-                            "result": result_dict
-                        }
-                        templar = Templar(loader=DataLoader(), variables=context)
-                        try:
-                            templated_value = templar.template(tag_values(template_string))
-                            if templated_value == "" and test_name == "assert_is_none":
-                                templated_value = None
-                        except AnsibleUndefinedVariable as e:
-                            raise MonkeybleException(message=f"Test Output Error: {str(e)}",
-                                                     scenario_description=self.monkeyble_scenario_description)
-                        expected = result_value_and_expected.get('expected')
-                        returned_tuple = switch_test_method(test_name, templated_value, expected)
-                        test_result[returned_tuple[0]].append(returned_tuple[1])
+                        template_string = "{{ " + result_key + " }}"
+
+                        # loops pass results back in ["results"]
+                        # normalise to array of results
+                        if "results" in result_dict.keys():
+                            results = result_dict['results']
+                        else:
+                            results = [result_dict]
+
+                        # iterate result(s)
+                        for result in results:
+                            templar = Templar(loader=DataLoader(), variables=result)
+                            try:
+                                templated_value = templar.template(tag_values(template_string))
+                                if templated_value == "" and test_name == "assert_is_none":
+                                    templated_value = None
+                            except AnsibleUndefinedVariable as e:
+                                raise MonkeybleException(message=f"Test Output Error: {str(e)}",
+                                                         scenario_description=self.monkeyble_scenario_description)
+                            expected = templar.template(tag_values(result_key_and_expected.get('expected')))
+                            returned_tuple = switch_test_method(test_name, templated_value, expected)
+                            test_result[returned_tuple[0]].append(returned_tuple[1])
 
                 self._last_check_output_result = test_result
                 json_test_result = json.dumps(test_result)

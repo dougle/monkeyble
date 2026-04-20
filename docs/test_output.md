@@ -2,11 +2,13 @@
 
 ## Syntax
 
-Monkeyble allow to check the returned dictionary of a task.
+Monkeyble allow to check the returned result dictionary of a task.
 
 !!!note
 
-    All modules doesn't return values. Check the documenttion of each module you want to test.
+    Not all modules return values. Check the documenttion of each module you want to test.
+
+    Tasks with a loop return a list of results, one for each item in the list, the output test is performed on each result.
 
 Monkeyble config example:
 
@@ -18,17 +20,17 @@ monkeyble_scenarios:
       - task: "debug task"
         test_output: # list of test case method
           - assert_equal:
-              result_key: result.module_output_key
+              result_key: module_output_key
               expected: "module_output_value"
           - assert_dict_equal:
-              result_key: "result.module_output_key"
+              result_key: "module_output_key"
               expected:
                 some_key: "some var"
 ```
 
 A test case method expect two arguments:
 
-- **result_key**: The string path to the key to test in the returned dict
+- **result_key**: The string path to the key to test in the returned result dict, if the task is in a loop this is the key for each result.
 - **expected**: The expected instantiated value of the selected 'key' in the result dict
 
 !!! warning
@@ -52,8 +54,30 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_equal:
-        result_key: result.ansible_facts.r2d2
+        result_key: ansible_facts.r2d2
         expected: "is the coolest robot ever"
+```
+
+### assert_equal in a loop
+
+```yaml
+# Task example
+- name: "test_output"
+  loop:
+    - r2d2
+    - c3po
+    - bb8
+  set_fact:
+    droid: "{{ item }} is the coolest robot ever"
+```
+
+```yaml
+# Monkeyble config
+- task: "test_output"
+  test_output:
+    - assert_equal:
+        result_key: ansible_facts.droid
+        expected: "{{ item }} is the coolest robot ever"
 ```
 
 ### assert_not_equal
@@ -70,7 +94,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_not_equal:
-        result_key: result.ansible_facts.r2d2
+        result_key: ansible_facts.r2d2
         expected: "is bb8"
 ```
 
@@ -90,7 +114,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_in:
-        result_key: result.ansible_facts.planets
+        result_key: ansible_facts.planets
         expected: "tatooine"
 ```
 
@@ -110,7 +134,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_in:
-        result_key: result.ansible_facts.planets
+        result_key: ansible_facts.planets
         expected: "naboo"
 ```
 
@@ -128,7 +152,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_true:
-        result_key: result.ansible_facts.true_bool
+        result_key: ansible_facts.true_bool
         expected: true
 ```
 
@@ -146,7 +170,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_false:
-        result_key: result.ansible_facts.false_bool
+        result_key: ansible_facts.false_bool
         expected: true
 ```
 
@@ -164,7 +188,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_is_none:
-        result_key: result.ansible_facts.null_value
+        result_key: ansible_facts.null_value
 ```
 
 ### assert_is_not_none
@@ -181,7 +205,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_is_not_none:
-        result_key: result.ansible_facts.saber_color
+        result_key: ansible_facts.saber_color
 ```
 
 ### assert_list_equal
@@ -200,7 +224,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_list_equal:
-        result_key: result.ansible_facts.planets
+        result_key: ansible_facts.planets
         expected:
           - "tatooine"
           - "coruscant"
@@ -222,7 +246,7 @@ A test case method expect two arguments:
 - task: "test_output"
   test_output:
     - assert_dict_equal:
-        result_key: result.ansible_facts.side
+        result_key: ansible_facts.side
         expected:
           light: "yoda"
           dark: "vader"

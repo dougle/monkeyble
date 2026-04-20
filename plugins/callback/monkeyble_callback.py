@@ -200,7 +200,7 @@ class CallbackModule(CallbackBase):
                             if templated_value == "" and test_name == "assert_is_none":
                                 templated_value = None
                         except AnsibleUndefinedVariable as e:
-                            raise MonkeybleException(message=str(e),
+                            raise MonkeybleException(message=f"Test Output Error: {str(e)}",
                                                      scenario_description=self.monkeyble_scenario_description)
                         try:
                             expected = result_value_and_expected['expected']

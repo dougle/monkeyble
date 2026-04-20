@@ -202,10 +202,7 @@ class CallbackModule(CallbackBase):
                         except AnsibleUndefinedVariable as e:
                             raise MonkeybleException(message=f"Test Output Error: {str(e)}",
                                                      scenario_description=self.monkeyble_scenario_description)
-                        try:
-                            expected = result_value_and_expected['expected']
-                        except KeyError:
-                            expected = None  # can be none for assert_none, assert_false, assert_true, assert_false
+                        expected = result_value_and_expected.get('expected')
                         returned_tuple = switch_test_method(test_name, templated_value, expected)
                         test_result[returned_tuple[0]].append(returned_tuple[1])
 

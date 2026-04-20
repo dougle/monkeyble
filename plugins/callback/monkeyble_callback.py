@@ -160,10 +160,13 @@ class CallbackModule(CallbackBase):
         if result.is_changed():
             self.changed_task_list.append(task_name)
 
-        self.check_if_task_should_have_been_skipped(task_has_been_actually_skipped=False)
-        self.check_if_task_should_have_been_changed(task_has_been_actually_changed=result.is_changed())
-        self.check_if_task_should_have_failed(task_has_actually_failed=False)
-        self.test_output(result_dict=result._result)
+        try:
+            self.check_if_task_should_have_been_skipped(task_has_been_actually_skipped=False)
+            self.check_if_task_should_have_been_changed(task_has_been_actually_changed=result.is_changed())
+            self.check_if_task_should_have_failed(task_has_actually_failed=False)
+            self.test_output(result_dict=result._result)
+        except Exception as e:
+            raise MonkeybleException(message=f"v2_runner_on_ok: {str(e)}")
 
     def v2_runner_on_failed(self, result, *args, **kwargs):
         self._display.debug("Run v2_runner_on_failed")

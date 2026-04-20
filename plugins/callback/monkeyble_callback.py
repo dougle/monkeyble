@@ -9,7 +9,6 @@ from copy import copy
 
 from ansible import constants as C
 from ansible.errors import AnsibleUndefinedVariable
-from ansible.module_utils.basic import AnsibleModule
 from ansible.parsing.dataloader import DataLoader
 from ansible.plugins.callback import CallbackBase
 from ansible.plugins.loader import PluginLoader
@@ -193,7 +192,7 @@ class CallbackModule(CallbackBase):
                     for test_name, result_value_and_expected in result_value_to_test.items():
                         result_key = result_value_and_expected['result_key']
                         # template the result to get the real value
-                        template_string = "{{  " + result_key + "  }}"
+                        template_string = "{{ " + result_key + " }}"
                         context = {
                             "result": result_dict
                         }
@@ -272,15 +271,18 @@ class CallbackModule(CallbackBase):
         spec = importlib.util.spec_from_file_location(module_name, module_path)
         module = importlib.util.module_from_spec(spec)
 
+        # exec the module to extract the original argument spec from the module
         with unittest.mock.patch("ansible.module_utils.basic.AnsibleModule", return_value=None) as mock_ansible_module:
+            # it will fail but catch it
             try:
                 sys.modules[module_name] = module
                 spec.loader.exec_module(module)
                 module.main()
             except Exception as e:
+                # print(''.join(traceback.format_exception(type(e), value=e, tb=e.__traceback__)))
                 pass
 
-            return mock_ansible_module.call_args_list[0].args['argument_spec']
+            return mock_ansible_module.call_args_list[0].kwargs.get('argument_spec', {})
 
     def mock_task_module(self, ansible_task):
         new_action_name = next(iter(self._last_task_config["mock"]["config"]))
@@ -288,7 +290,7 @@ class CallbackModule(CallbackBase):
         message = f"🙉 Monkeyble mock module - Before: '{original_module_name}' Now: '{new_action_name}'"
         self.display_message_ok(msg=str(message))
 
-        arg_spec = self.get_run_module_source(original_module_name)
+        arg_spec = self.get_module_arg_spec(original_module_name)
 
         ansible_task.action = new_action_name
         ansible_task.resolved_action = new_action_name
@@ -299,14 +301,16 @@ class CallbackModule(CallbackBase):
         if new_action_name in monkeyble_action_names:
             consider_changed = self._last_task_config["mock"]["config"][new_action_name].get("consider_changed", False)
             result_dict = self._last_task_config["mock"]["config"][new_action_name].get("result_dict", {})
-            ansible_task.args = {"task_name": ansible_task.name,
+            ansible_task.args['_mock'] = {"task_name": ansible_task.name,
                                  "original_module_name": original_module_name,
                                  "consider_changed": consider_changed,
-                                 "result_dict": result_dict
+                                 "result_dict": result_dict,
+                                 "original_arg_spec": arg_spec
                                  }
         else:
             # custom module
-            ansible_task.args = self._last_task_config["mock"]["config"][new_action_name]
+            ansible_task.args['_mock'] = self._last_task_config["mock"]["config"][new_action_name]
+            ansible_task.args['_mock']['original_arg_spec'] = arg_spec
         return ansible_task
 
     def update_extra_var(self, ansible_task, extra_var_to_merge=None):
